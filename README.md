@@ -21,5 +21,5 @@ $ pip install -r requirements.txt
 Run the parser:
 
 ```bash
-$ python parser.py <output_csv_file> <pcap_file> [<pcap_file> ...]
+$ python parse.py <output_csv_file> <pcap_file> [<pcap_file> ...]
 ```
