@@ -5,6 +5,11 @@ them.
 
 ## Getting started:
 
+This utility requires macOS. You need to have Python 3 installed.
+
+Also make sure to have [Wireshark](https://www.wireshark.org/download.html)
+installed on your macOS.
+
 Set up the environment:
 
 ```bash
