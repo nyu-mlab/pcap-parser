@@ -59,7 +59,7 @@ def main():
         return
 
     # Combine into a single DataFrame
-    combined_df = pd.concat(df_list)
+    combined_df = pd.concat(df_list).sort_values(by='frame.time_epoch')
 
     # Maps IP addresses to hostnames
     ip_hostname_dict = {}
