@@ -97,7 +97,7 @@ def main():
     )
 
     # Write the results to a CSV file
-    combined_df.to_csv(output_csv_file.csv, index=False)
+    combined_df.to_csv(output_csv_file, index=False)
 
 
 def run_tshark(pcap_file):
