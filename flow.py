@@ -23,15 +23,8 @@ def process_pcap_data(input_csv, output_csv):
     df = pd.read_csv(input_csv) # Load DataFrame from specified input csv file
     df['frame.time_epoch'] = pd.to_datetime(df['frame.time_epoch'], unit='s') # Convert to timestamps
 
-    # Filtering out non-IP/TCP/UDP protocols for accurate flow information
-    df = df[df['_ws.col.Protocol'].isin(['TCP', 'TLSv1.2', 'UDP'])]
-
-    # Aggregate data for each flow    
+    df = df[df['_ws.col.Protocol'].isin(['TCP', 'TLSv1.2', 'UDP'])] # Filtering out non-IP/TCP/UDP protocols for accurate flow information
     grouped = df.groupby(['ip.src', 'ip.dst', 'tcp.srcport', 'tcp.dstport', 'udp.srcport', 'udp.dstport', '_ws.col.Protocol']) # Grouping by identifiers
-
-
-
-# The rest of your script remains the same...
 
     # Aggregate data for each flow
     flows = grouped.agg(
