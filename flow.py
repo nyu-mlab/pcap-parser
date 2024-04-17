@@ -16,15 +16,26 @@ Note:
 """
 
 import pandas as pd
-import numpy as np
 import sys
+import tldextract
+
+def extract_main_domain(hostname):
+    try:
+        extracted = tldextract.extract(hostname) # Extracts registered domain: main domain and TLD
+        return f"{extracted.domain}.{extracted.suffix}"
+    except:
+        return None
 
 def process_pcap_data(input_csv, output_csv):
-    df = pd.read_csv(input_csv) # Load DataFrame from specified input csv file
+    df = pd.read_csv(input_csv)
     df['frame.time_epoch'] = pd.to_datetime(df['frame.time_epoch'], unit='s') # Convert to timestamps
 
     df = df[df['_ws.col.Protocol'].isin(['TCP', 'TLSv1.2', 'UDP'])] # Filtering out non-IP/TCP/UDP protocols for accurate flow information
-    grouped = df.groupby(['ip.src', 'ip.dst', 'tcp.srcport', 'tcp.dstport', 'udp.srcport', 'udp.dstport', '_ws.col.Protocol']) # Grouping by identifiers
+    grouped = df.groupby(['ip.src', 'ip.dst', 'tcp.srcport', 'tcp.dstport', 'udp.srcport', 'udp.dstport', '_ws.col.Protocol'])
+
+    # Apply domain extraction to hostname columns
+    df['src_main_domain'] = df['src_hostname'].apply(extract_main_domain)
+    df['dst_main_domain'] = df['dst_hostname'].apply(extract_main_domain)
 
     # Aggregate data for each flow
     flows = grouped.agg(
@@ -33,14 +44,16 @@ def process_pcap_data(input_csv, output_csv):
         byte_count=('frame.len', 'sum'),
         packet_count=('frame.len', 'size'),
         src_hostname=('src_hostname', 'first'),
-        dst_hostname=('dst_hostname', 'first')
+        dst_hostname=('dst_hostname', 'first'),
+        src_main_domain=('src_main_domain', 'first'),
+        dst_main_domain=('dst_main_domain', 'first')
     )
     flows.reset_index(inplace=True)
 
     # Specify order
-    columns_order = ['start_ts', 'end_ts', 'ip.src', 'ip.dst', 'tcp.srcport', 'tcp.dstport', '_ws.col.Protocol', 'byte_count', 'packet_count', 'src_hostname', 'dst_hostname']
+    columns_order = ['start_ts', 'end_ts', 'ip.src', 'ip.dst', 'tcp.srcport', 'tcp.dstport', '_ws.col.Protocol', 'byte_count', 'packet_count', 'src_hostname', 'dst_hostname', 'src_main_domain', 'dst_main_domain']
     flows = flows[columns_order]
-    flows.to_csv(output_csv, index=False) # Save to specified output csv file
+    flows.to_csv(output_csv, index=False)
 
 def main():
     if len(sys.argv) != 3:
