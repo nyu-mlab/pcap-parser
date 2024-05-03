@@ -32,6 +32,8 @@ def process_pcap_data(input_csv, output_csv):
 
     df = df[df['_ws.col.Protocol'].isin(['TCP', 'TLSv1.2', 'UDP'])] # Filtering out non-IP/TCP/UDP protocols for accurate flow information
     grouped = df.groupby(['ip.src', 'ip.dst', 'tcp.srcport', 'tcp.dstport', 'udp.srcport', 'udp.dstport', '_ws.col.Protocol'])
+    # Calculating inter-arrival times within each flow
+    df['inter_arrival_time'] = df.groupby(['ip.src', 'ip.dst', 'tcp.srcport', 'tcp.dstport', 'udp.srcport', 'udp.dstport', '_ws.col.Protocol'])['frame.time_epoch'].diff().dt.total_seconds()
 
     # Apply domain extraction to hostname columns
     df['src_main_domain'] = df['src_hostname'].apply(extract_main_domain)
@@ -43,6 +45,7 @@ def process_pcap_data(input_csv, output_csv):
         end_ts=('frame.time_epoch', 'max'),
         byte_count=('frame.len', 'sum'),
         packet_count=('frame.len', 'size'),
+        avg_inter_arrival_time=('inter_arrival_time', 'mean'),  # Calculate average inter-arrival time
         src_hostname=('src_hostname', 'first'),
         dst_hostname=('dst_hostname', 'first'),
         src_main_domain=('src_main_domain', 'first'),
@@ -51,7 +54,7 @@ def process_pcap_data(input_csv, output_csv):
     flows.reset_index(inplace=True)
 
     # Specify order
-    columns_order = ['start_ts', 'end_ts', 'ip.src', 'ip.dst', 'tcp.srcport', 'tcp.dstport', '_ws.col.Protocol', 'byte_count', 'packet_count', 'src_hostname', 'dst_hostname', 'src_main_domain', 'dst_main_domain']
+    columns_order = ['start_ts', 'end_ts', 'ip.src', 'ip.dst', 'tcp.srcport', 'tcp.dstport', '_ws.col.Protocol', 'byte_count', 'packet_count', 'avg_inter_arrival_time', 'src_hostname', 'dst_hostname', 'src_main_domain', 'dst_main_domain']
     flows = flows[columns_order]
     flows.to_csv(output_csv, index=False)
 
