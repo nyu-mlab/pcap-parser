@@ -11,8 +11,12 @@ Example:
 OR:
     python parse.py output.csv *.pcap
 
-This script uses tshark to parse the pcap files. Make sure that Wireshark is
-installed. This script only works on macOS.
+This script uses tshark to parse the pcap files. 
+
+Make sure that Wireshark is installed, along with tshark. 
+
+This script works on macOS and Linux. Verify the path to the
+tshark binary and modify TSHARK_PATH if needed.
 
 TODO:
     - Add support for dealing with ARP spoofing (e.g., as a result of output
@@ -24,10 +28,22 @@ import pandas as pd
 from io import StringIO
 import sys
 import os
+import platform
 
+operating_system = platform.system()
+operating_system_release = platform.release()
 
-# Define the path to tshark within the Wireshark.app package
-TSHARK_PATH = "/Applications/Wireshark.app/Contents/MacOS/tshark"
+# check things are working - uncomment for debugging
+# print(f'OS appears to be {operating_system}, release version {operating_system_release}\n')
+
+# Define the path to tshark based on OS
+# TODO expand for poor souls running Windows
+if operating_system == "Linux":
+    TSHARK_PATH = "/usr/bin/tshark"
+elif operating_system == "Darwin":
+    TSHARK_PATH = "/Applications/Wireshark.app/Contents/MacOS/tshark"
+else:
+    sys.exit("This requires either MacOS or Linux.")
 
 
 def main():
@@ -146,7 +162,7 @@ def run_tshark(pcap_file):
     # Decode the output and read it into a Pandas DataFrame
     output = output.decode()
     data = StringIO(output)
-    df = pd.read_csv(data)
+    df = pd.read_csv(data, low_memory=False)
 
     # Make sure the ports are integers
     port_columns = ['tcp.srcport', 'tcp.dstport', 'udp.srcport', 'udp.dstport']
