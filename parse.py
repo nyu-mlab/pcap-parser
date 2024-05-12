@@ -1,29 +1,25 @@
 """
-Parses given pcap files, fills in the hostnames, and outputs the results to a
-csv file.
+Parses pcap files specified by the user, either as individual files or all files in a directory,
+fills in the hostnames, and outputs the results to a csv file.
 
 Usage:
-    python parse.py <output_csv_file> <pcap_file> [<pcap_file> ...]
+    python parse.py <output_csv_file> <path_to_pcap_file_or_directory>
 
-Example:
-    python parse.py output.csv input_1.pcap input_2.pcap
+Examples:
+    python parse.py output.csv /path/to/single.pcap
+    python parse.py output.csv /path/to/pcap_files
 
-OR:
-    python parse.py output.csv *.pcap
-
-This script uses tshark to parse the pcap files. Make sure that Wireshark is
-installed. This script only works on macOS.
+This script uses tshark to parse the pcap files. Make sure that Wireshark is installed. This script only works on macOS.
 
 TODO:
-    - Add support for dealing with ARP spoofing (e.g., as a result of output
-      from IoT Inspector.)
-
+    - Add support for dealing with ARP spoofing (e.g., as a result of output from IoT Inspector.)
 """
 import subprocess
 import pandas as pd
 from io import StringIO
 import sys
 import os
+import glob
 
 
 # Define the path to tshark within the Wireshark.app package
@@ -31,20 +27,26 @@ TSHARK_PATH = "/Applications/Wireshark.app/Contents/MacOS/tshark"
 
 
 def main():
-
     # Parse the command line arguments
-    if len(sys.argv) < 3:
-        print("Usage: python parse.py <output_csv_file> <pcap_file> [<pcap_file> ...]")
+    if len(sys.argv) != 3:
+        print("Usage: python parse.py <output_csv_file> <path_to_pcap_file_or_directory>")
         return
 
     output_csv_file = sys.argv[1]
-    pcap_files = sys.argv[2:]
+    pcap_path = sys.argv[2]
 
-    # Check that each of the pcap files exists
-    for pcap_file in pcap_files:
-        if not os.path.exists(pcap_file):
-            print(f"Error: pcap file not found: {pcap_file}")
-            return
+    # Check if the path is a directory or a single file
+    if os.path.isdir(pcap_path):
+        pcap_files = glob.glob(os.path.join(pcap_path, '*.pcap'))
+    elif os.path.isfile(pcap_path) and pcap_path.endswith('.pcap'):
+        pcap_files = [pcap_path]
+    else:
+        print(f"No valid pcap files found at the specified path: {pcap_path}")
+        return
+
+    if not pcap_files:
+        print("No pcap files found.")
+        return
 
     # Process each pcap file and concatenate the resultant DataFrames
     df_list = []
@@ -54,7 +56,7 @@ def main():
         if df is not None:
             df_list.append(df)
 
-    if len(df_list) == 0:
+    if not df_list:
         print("Failed to parse any pcap files.")
         return
 
@@ -103,7 +105,6 @@ def main():
 def run_tshark(pcap_file):
     """
     Run tshark on a pcap file and return the output as a Pandas DataFrame.
-
     """
 
     # Define the fields to extract
