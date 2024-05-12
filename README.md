@@ -20,6 +20,12 @@ $ pip install -r requirements.txt
 
 Run the parser:
 
+To parse individual pcap files:
 ```bash
-$ python parse.py <output_csv_file> <pcap_file> [<pcap_file> ...]
+$ python parse.py <output_csv_file> <path_to_pcap_file>
+```
+
+To parse all pcap files in a directory:
+```bash
+$ python parse.py <output_csv_file> <directory_containing_pcap_files>
 ```
