@@ -9,9 +9,7 @@ Examples:
     python parse.py output.csv /path/to/single.pcap
     python parse.py output.csv /path/to/pcap_files
 
-This script uses tshark to parse the pcap files, and verifies that tshark is installed and executable.
-
-This script works on macOS and Linux.
+This script uses tshark to parse the pcap files, and verifies that tshark is installed. This script works for *nix.
 
 TODO:
     - Add support for dealing with ARP spoofing (e.g., as a result of output from IoT Inspector.)
@@ -22,23 +20,18 @@ from io import StringIO
 import sys
 import os
 import glob
+import pathlib
 import platform
 import shutil
 
-operating_system = platform.system()
-operating_system_release = platform.release()
 
-# check things are working - uncomment for debugging
-# print(f'OS appears to be {operating_system}, release version {operating_system_release}\n')
-
-if operating_system == "Darwin" or operating_system == "Linux":
-    tshark_exists = shutil.which('tshark')
-    if tshark_exists and os.access(tshark_exists, os.X_OK) == True:
-        TSHARK_PATH = tshark_exists
-    else:
-        sys.exit("Verify that tshark is installed, and that tshark is executable.")
+if platform.system == "Darwin":
+    # Define the path to tshark within the Wireshark.app package
+    TSHARK_PATH = "/Applications/Wireshark.app/Contents/MacOS/tshark"
+elif os.name == "posix":
+    assert (TSHARK_PATH := shutil.which("tshark", os.X_OK)), "couldn't find tshark"
 else:
-    sys.exit("This script requires either MacOS or Linux.")
+    sys.exit("This script requires *nix.")
 
 def main():
     # Parse the command line arguments
