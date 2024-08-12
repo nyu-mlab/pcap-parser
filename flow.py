@@ -30,7 +30,8 @@ def process_pcap_data(input_csv, output_csv):
     df = pd.read_csv(input_csv)
     df['frame.time_epoch'] = pd.to_datetime(df['frame.time_epoch'], unit='s') # Convert to timestamps
 
-    df = df[df['_ws.col.Protocol'].isin(['TCP', 'TLSv1.2', 'TLSv1.3', 'UDP'])] # Filtering out non-IP/TCP/UDP protocols for accurate flow information
+    df = df[df['_ws.col.Protocol'].isin(['TCP', 'TLSv1.2', 'UDP'])] # Filtering out non-IP/TCP/UDP protocols for accurate flow information
+
     # Sort by grouping columns and timestamp for accurate inter-arrival times
     df = df.sort_values(by=['ip.src', 'ip.dst', 'tcp.srcport', 'tcp.dstport', 'udp.srcport', 'udp.dstport', '_ws.col.Protocol', 'frame.time_epoch'])
     grouped = df.groupby(['ip.src', 'ip.dst', 'tcp.srcport', 'tcp.dstport', 'udp.srcport', 'udp.dstport', '_ws.col.Protocol'])
