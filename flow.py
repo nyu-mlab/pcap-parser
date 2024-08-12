@@ -31,6 +31,7 @@ def process_pcap_data(input_csv, output_csv):
     df['frame.time_epoch'] = pd.to_datetime(df['frame.time_epoch'], unit='s') # Convert to timestamps
 
     df = df[df['_ws.col.Protocol'].isin(['TCP', 'TLSv1.2', 'UDP'])] # Filtering out non-IP/TCP/UDP protocols for accurate flow information
+
     # Sort by grouping columns and timestamp for accurate inter-arrival times
     df = df.sort_values(by=['ip.src', 'ip.dst', 'tcp.srcport', 'tcp.dstport', 'udp.srcport', 'udp.dstport', '_ws.col.Protocol', 'frame.time_epoch'])
     grouped = df.groupby(['ip.src', 'ip.dst', 'tcp.srcport', 'tcp.dstport', 'udp.srcport', 'udp.dstport', '_ws.col.Protocol'])
@@ -56,7 +57,7 @@ def process_pcap_data(input_csv, output_csv):
     flows.reset_index(inplace=True)
 
     # Specify order
-    columns_order = ['start_ts', 'end_ts', 'ip.src', 'ip.dst', 'tcp.srcport', 'tcp.dstport', '_ws.col.Protocol', 'byte_count', 'packet_count', 'avg_inter_arrival_time', 'src_hostname', 'dst_hostname', 'src_main_domain', 'dst_main_domain']
+    columns_order = ['start_ts', 'end_ts', 'ip.src', 'ip.dst', 'tcp.srcport', 'tcp.dstport', 'udp.srcport', 'udp.dstport', '_ws.col.Protocol', 'byte_count', 'packet_count', 'avg_inter_arrival_time', 'src_hostname', 'dst_hostname', 'src_main_domain', 'dst_main_domain']
     flows = flows[columns_order]
     flows.to_csv(output_csv, index=False)
 

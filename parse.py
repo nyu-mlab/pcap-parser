@@ -9,7 +9,8 @@ Examples:
     python parse.py output.csv /path/to/single.pcap
     python parse.py output.csv /path/to/pcap_files
 
-This script uses tshark to parse the pcap files. Make sure that Wireshark is installed. This script only works on macOS.
+This script uses tshark to parse the pcap files, and verifies that tshark is installed. This script works for *nix.
+
 
 TODO:
     - Add support for dealing with ARP spoofing (e.g., as a result of output from IoT Inspector.)
@@ -20,11 +21,19 @@ from io import StringIO
 import sys
 import os
 import glob
+import pathlib
+import platform
+import shutil
 
 
-# Define the path to tshark within the Wireshark.app package
-TSHARK_PATH = "/Applications/Wireshark.app/Contents/MacOS/tshark"
 
+if platform.system() == "Darwin":
+    # Define the path to tshark within the Wireshark.app package
+    TSHARK_PATH = "/Applications/Wireshark.app/Contents/MacOS/tshark"
+elif os.name == "posix":
+    assert (TSHARK_PATH := shutil.which("tshark", os.X_OK)), "couldn't find tshark"
+else:
+    sys.exit("This script requires *nix.")
 
 def main():
     # Parse the command line arguments
@@ -147,7 +156,7 @@ def run_tshark(pcap_file):
     # Decode the output and read it into a Pandas DataFrame
     output = output.decode()
     data = StringIO(output)
-    df = pd.read_csv(data)
+    df = pd.read_csv(data, low_memory=False)
 
     # Make sure the ports are integers
     port_columns = ['tcp.srcport', 'tcp.dstport', 'udp.srcport', 'udp.dstport']
