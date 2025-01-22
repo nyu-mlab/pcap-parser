@@ -108,8 +108,8 @@ def update_ip_hostname_mappings(df, ip_shelve):
     for _, row in sni_df.iterrows():
         ip_shelve[row['ip.dst']] = row['tls.handshake.extensions_server_name']
 
-    df['src_hostname'] = df['ip.src'].map(lambda x: ip_shelve.get(x, reverse_dns(x) if x else 'No IP'))
-    df['dst_hostname'] = df['ip.dst'].map(lambda x: ip_shelve.get(x, reverse_dns(x) if x else 'No IP'))
+    df['src_hostname'] = df['ip.src'].map(lambda x: ip_shelve.get(str(x), reverse_dns(str(x)) if x else ''))
+    df['dst_hostname'] = df['ip.dst'].map(lambda x: ip_shelve.get(str(x), reverse_dns(str(x)) if x else ''))
     df.drop(['dns.qry.name', 'dns.a', 'tls.handshake.extensions_server_name'], axis=1, inplace=True)
 
 def reverse_dns(ip_address):
@@ -117,7 +117,7 @@ def reverse_dns(ip_address):
     Attempts to resolve an IP address to a hostname using a reverse DNS lookup; 
     This function is used as a fallback mechanism in the event that an IP address does not have a corresponding hostname entry in the shelve database.
     """
-    if not ip_address:
+    if not ip_address or not isinstance(ip_address, str):
         return ''
     try:
         hostname = socket.gethostbyaddr(ip_address)[0]
