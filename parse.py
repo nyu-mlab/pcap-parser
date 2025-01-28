@@ -123,7 +123,7 @@ def run_tshark(pcap_file):
         'ip.src', 'ip.dst',
         'tcp.srcport', 'tcp.dstport',
         'udp.srcport', 'udp.dstport',
-        '_ws.col.protocol', 'frame.len',
+        '_ws.col.Protocol', 'frame.len',
         'dns.qry.name', 'dns.a',
         'tls.handshake.extensions_server_name'
     ]
