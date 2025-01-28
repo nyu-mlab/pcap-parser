@@ -123,7 +123,7 @@ def run_tshark(pcap_file):
         'ip.src', 'ip.dst',
         'tcp.srcport', 'tcp.dstport',
         'udp.srcport', 'udp.dstport',
-        '_ws.col.Protocol', 'frame.len',
+        '_ws.col.protocol', 'frame.len',
         'dns.qry.name', 'dns.a',
         'tls.handshake.extensions_server_name'
     ]
@@ -153,10 +153,19 @@ def run_tshark(pcap_file):
         print(error.decode())
         return None
 
-    # Decode the output and read it into a Pandas DataFrame
+    if not output.strip():  # Check if the output is empty
+        print(f"No data returned by tshark for file: {pcap_file}")
+        return None
+    
+    # Decode the output and read it into df
     output = output.decode()
     data = StringIO(output)
-    df = pd.read_csv(data, low_memory=False)
+    
+    try:
+        df = pd.read_csv(data, low_memory=False)
+    except pd.errors.EmptyDataError:
+        print(f"No columns to parse from file: {pcap_file}")
+        return None
 
     # Make sure the ports are integers
     port_columns = ['tcp.srcport', 'tcp.dstport', 'udp.srcport', 'udp.dstport']
