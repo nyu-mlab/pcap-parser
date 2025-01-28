@@ -1,0 +1,61 @@
+name: CI-Flow
+
+on:
+  push:
+    branches:
+      - main
+      - add-flow-ci
+  pull_request:
+    branches:
+      - main
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out the repository
+        uses: actions/checkout@v3
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.9'
+
+      - name: Cache Python packages
+        uses: actions/cache@v3
+        with:
+          path: ~/.cache/pip
+          key: ${{ runner.os }}-pip-${{ hashFiles('**/requirements.txt') }}
+          restore-keys: |
+            ${{ runner.os }}-pip-
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install tldextract  # Install the missing tldextract module
+
+      - name: Install TShark
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y tshark
+
+      - name: Run parse.py on sample data
+        run: python parse.py parse_output.csv ./tests/sample_pcap_directory
+        if: success()
+
+      - name: Run flow.py on parsed data
+        run: python flow.py parse_output.csv flow_output.csv
+        if: success()
+
+      - name: Upload flow_output.csv as artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: flow-output
+          path: flow_output.csv
+        if: success()
+
+      - name: Run unit tests
+        run: python -m unittest discover -s tests
