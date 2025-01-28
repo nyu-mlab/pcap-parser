@@ -43,3 +43,9 @@ jobs:
 
       - name: Run parse.py on sample data
         run: python parse.py output.csv ./tests/sample_pcap_directory
+
+      - name: Upload output.csv as artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: parse-output.csv
+          path: output.csv
