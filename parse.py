@@ -101,7 +101,7 @@ def update_ip_hostname_mappings(df, ip_shelve):
     dns_df = df[df['dns.qry.name'].notna() & df['dns.a'].notna()]
     for _, row in dns_df.iterrows():
         ips = row['dns.a'].split(',')
-        for ip in ips:
+        for ip in (ip.strip() for ip in ips):
             ip_shelve[ip] = row['dns.qry.name']
 
     sni_df = df[df['tls.handshake.extensions_server_name'].notna()]
