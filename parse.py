@@ -123,6 +123,7 @@ def reverse_dns(ip_address):
         hostname = socket.gethostbyaddr(ip_address)[0]
         return hostname
     except (socket.herror, socket.gaierror):
+        unresolvable_ips.append(ip_address)
         return ''
 
 if __name__ == "__main__":
