@@ -34,7 +34,7 @@ elif os.name == "posix":
 else:
     sys.exit("This script requires *nix.")
 
-unresolvable_ips = []  # List to keep track of unresolvable IP addresses
+unresolvable_ips = set()  # keep track of unresolvable IP addresses
 
 def main():
     # Parse the command line arguments
@@ -123,8 +123,7 @@ def reverse_dns(ip_address):
         hostname = socket.gethostbyaddr(ip_address)[0]
         return hostname
     except (socket.herror, socket.gaierror):
-        if ip_address not in unresolvable_ips:
-            unresolvable_ips.append(ip_address)
+        unresolvable_ips.add(ip_address)
         return ''
 
 if __name__ == "__main__":
