@@ -34,7 +34,7 @@ elif os.name == "posix":
 else:
     sys.exit("This script requires *nix.")
 
-unresolvable_ips = []  # List to keep track of unresolvable IP addresses
+unresolvable_ips = set()  # keep track of unresolvable IP addresses
 
 def main():
     # Parse the command line arguments
@@ -108,8 +108,8 @@ def update_ip_hostname_mappings(df, ip_shelve):
     for _, row in sni_df.iterrows():
         ip_shelve[row['ip.dst']] = row['tls.handshake.extensions_server_name']
 
-    df['src_hostname'] = df['ip.src'].map(lambda x: ip_shelve.get(str(x), reverse_dns(str(x)) if x else ''))
-    df['dst_hostname'] = df['ip.dst'].map(lambda x: ip_shelve.get(str(x), reverse_dns(str(x)) if x else ''))
+    df['src_hostname'] = df['ip.src'].map(lambda x: ip_shelve.get(str(x), reverse_dns(str(x))) if pd.notna(x) else '')
+    df['dst_hostname'] = df['ip.dst'].map(lambda x: ip_shelve.get(str(x), reverse_dns(str(x))) if pd.notna(x) else '')
     df.drop(['dns.qry.name', 'dns.a', 'tls.handshake.extensions_server_name'], axis=1, inplace=True)
 
 def reverse_dns(ip_address):
@@ -117,13 +117,13 @@ def reverse_dns(ip_address):
     Attempts to resolve an IP address to a hostname using a reverse DNS lookup; 
     This function is used as a fallback mechanism in the event that an IP address does not have a corresponding hostname entry in the shelve database.
     """
-    if not ip_address or not isinstance(ip_address, str):
+    if not ip_address or not isinstance(ip_address, str) or ip_address.lower() == 'nan':
         return ''
     try:
         hostname = socket.gethostbyaddr(ip_address)[0]
         return hostname
     except (socket.herror, socket.gaierror):
-        unresolvable_ips.append(ip_address)
+        unresolvable_ips.add(ip_address)
         return ''
 
 if __name__ == "__main__":
