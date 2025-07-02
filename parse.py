@@ -11,7 +11,13 @@ Examples:
 
 This script uses tshark to parse the pcap files, and verifies that tshark is installed. This script works for *nix.
 """
+"""
+Parses pcap files specified by the user, either as individual files or all files in a directory,
+fills in hostnames (including DHCP), and outputs the results to a csv file.
 
+Usage:
+    python parse.py <output_csv_file> <path_to_pcap_file_or_directory>
+"""
 import subprocess
 import pandas as pd
 import os
@@ -22,16 +28,11 @@ import shutil
 import socket
 from io import StringIO
 import shelve
+from collections import Counter
 
-# Detect tshark location
-if platform.system() == "Darwin":
-    TSHARK_PATH = "/Applications/Wireshark.app/Contents/MacOS/tshark"
-elif os.name == "posix":
-    TSHARK_PATH = shutil.which("tshark")
-    if not TSHARK_PATH:
-        sys.exit("Couldn't find tshark.")
-else:
-    sys.exit("Unsupported platform.")
+TSHARK_PATH = shutil.which("tshark") # detect shark location
+if not TSHARK_PATH:
+    sys.exit("Couldn't find tshark in PATH.")
 
 FIELDS = [
     'frame.time_epoch',
@@ -42,7 +43,8 @@ FIELDS = [
     '_ws.col.Protocol', 'frame.len',
     'dns.qry.name', 'dns.a',
     'tls.handshake.extensions_server_name',
-    'http.user_agent'
+    'http.user_agent',
+    'bootp.option.hostname'
 ]
 
 unresolvable_ips = set()
@@ -77,23 +79,68 @@ def run_tshark(pcap_file):
     df['source_file'] = os.path.basename(pcap_file)
     return df
 
+def extract_dhcp_mapping(df):
+    """
+    Returns: dict mapping ip.src → bootp.option.hostname
+    """
+    if 'bootp.option.hostname' not in df.columns:
+        return {}
+    
+    dhcp_rows = df[df['bootp.option.hostname'].notna()]
+    mapping = {}
+    for _, row in dhcp_rows.iterrows():
+        key = str(row.get('ip.src'))
+        value = str(row.get('bootp.option.hostname')).strip()
+        if key and value:
+            mapping[key] = value
+    return mapping
+
 def enrich_hostnames(df, ip_shelve):
     dns_df = df[df['dns.qry.name'].notna() & df['dns.a'].notna()]
     for _, row in dns_df.iterrows():
         for ip in str(row['dns.a']).split(','):
             ip = ip.strip()
-            if ip: ip_shelve[ip] = row['dns.qry.name']
+            if ip:
+                ip_shelve[ip] = row['dns.qry.name']
 
     sni_df = df[df['tls.handshake.extensions_server_name'].notna()]
     for _, row in sni_df.iterrows():
         ip = row.get('ip.dst')
-        if pd.notna(ip): ip_shelve[ip] = row['tls.handshake.extensions_server_name']
+        if pd.notna(ip):
+            ip_shelve[ip] = row['tls.handshake.extensions_server_name']
 
     df['src_hostname'] = df['ip.src'].map(lambda x: ip_shelve.get(str(x), reverse_dns(str(x))) if pd.notna(x) else '')
     df['dst_hostname'] = df['ip.dst'].map(lambda x: ip_shelve.get(str(x), reverse_dns(str(x))) if pd.notna(x) else '')
 
     df.drop(['dns.qry.name', 'dns.a', 'tls.handshake.extensions_server_name'], axis=1, inplace=True, errors='ignore')
     return df
+
+def extract_dhcp_hostnames(pcap_file):
+    try:
+        cmd = [
+            TSHARK_PATH, "-r", pcap_file,
+            "-Y", "bootp.option.hostname",
+            "-T", "fields", "-e", "bootp.option.hostname"
+        ]
+        proc = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        out, err = proc.communicate()
+
+        if proc.returncode != 0:
+            print(f"[!] Warning: tshark exited with code {proc.returncode}")
+            print(err.decode())
+
+        hostnames = [line.strip() for line in out.decode().splitlines() if line.strip()]
+        counts = Counter(hostnames)
+
+        if counts:
+            print(f"\n[✓] DHCP Hostnames in {pcap_file}:\n")
+            for hostname, count in counts.most_common():
+                print(f"{count:>4} {hostname}")
+        else:
+            print(f"[!] No DHCP hostnames found in {pcap_file}")
+
+    except Exception as e:
+        print(f"[!] Error running tshark on {pcap_file}: {e}")
 
 def main():
     if len(sys.argv) != 3:
@@ -105,11 +152,11 @@ def main():
     ip_shelve_path = 'ip_hostname_cache'
 
     if os.path.isdir(input_path):
-        pcap_files = glob.glob(os.path.join(input_path, '*.pcap'))
-    elif os.path.isfile(input_path) and input_path.endswith('.pcap'):
+        pcap_files = glob.glob(os.path.join(input_path, '*.pcap')) + glob.glob(os.path.join(input_path, '*.pcapng'))
+    elif os.path.isfile(input_path) and (input_path.endswith('.pcap') or input_path.endswith('.pcapng')):
         pcap_files = [input_path]
     else:
-        print("No valid .pcap files found.")
+        print("No valid .pcap or .pcapng files found.")
         return
 
     if not pcap_files:
@@ -119,10 +166,16 @@ def main():
     df_list = []
     with shelve.open(ip_shelve_path) as ip_shelve:
         for pcap_file in pcap_files:
+            extract_dhcp_hostnames(pcap_file)
             print(f"[+] Parsing: {pcap_file}")
             df = run_tshark(pcap_file)
             if df is not None:
+                dhcp_map = extract_dhcp_mapping(df) # extract DHCP map and enrich
                 df = enrich_hostnames(df, ip_shelve)
+                df['dhcp_hostname'] = df['ip.src'].map(lambda x: dhcp_map.get(str(x), '')) # add dhcp_hostname column (if map exists)
+                if 'bootp.option.hostname' in df.columns:
+                    df.drop(['bootp.option.hostname'], axis=1, inplace=True)
+
                 df_list.append(df)
 
     if not df_list:
