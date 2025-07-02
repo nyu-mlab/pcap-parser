@@ -10,121 +10,184 @@ Examples:
     python parse.py output.csv /path/to/pcap_files
 
 This script uses tshark to parse the pcap files, and verifies that tshark is installed. This script works for *nix.
+"""
+"""
+Parses pcap files specified by the user, either as individual files or all files in a directory,
+fills in hostnames (including DHCP), and outputs the results to a csv file.
 
-
-TODO:
-    - Add support for dealing with ARP spoofing (e.g., as a result of output from IoT Inspector.)
+Usage:
+    python parse.py <output_csv_file> <path_to_pcap_file_or_directory>
 """
 import subprocess
 import pandas as pd
-from io import StringIO
-import sys
 import os
+import sys
 import glob
 import platform
 import shutil
-import shelve
 import socket
+from io import StringIO
+import shelve
+from collections import Counter
 
-if platform.system() == "Darwin":
-    # Define the path to tshark within the Wireshark.app package
-    TSHARK_PATH = "/Applications/Wireshark.app/Contents/MacOS/tshark"
-elif os.name == "posix":
-    assert (TSHARK_PATH := shutil.which("tshark", os.X_OK)), "couldn't find tshark"
-else:
-    sys.exit("This script requires *nix.")
+TSHARK_PATH = shutil.which("tshark") # detect shark location
+if not TSHARK_PATH:
+    sys.exit("Couldn't find tshark in PATH.")
 
-unresolvable_ips = set()  # keep track of unresolvable IP addresses
+FIELDS = [
+    'frame.time_epoch',
+    'eth.src', 'eth.src.oui_resolved', 'eth.dst',
+    'ip.src', 'ip.dst',
+    'tcp.srcport', 'tcp.dstport',
+    'udp.srcport', 'udp.dstport',
+    '_ws.col.Protocol', 'frame.len',
+    'dns.qry.name', 'dns.a',
+    'tls.handshake.extensions_server_name',
+    'http.user_agent',
+    'bootp.option.hostname'
+]
 
-def main():
-    # Parse the command line arguments
-    ip_shelve_path = 'ip_hostname_db'
-    with shelve.open(ip_shelve_path) as ip_shelve:
-        if len(sys.argv) != 3:
-            print("Usage: python parse.py <output_csv_file> <path_to_pcap_file_or_directory>")
-            return
+unresolvable_ips = set()
 
-        output_csv_file = sys.argv[1]
-        pcap_path = sys.argv[2]
+def reverse_dns(ip):
+    if not ip or not isinstance(ip, str) or ip.lower() == 'nan':
+        return ''
+    try:
+        return socket.gethostbyaddr(ip)[0]
+    except (socket.herror, socket.gaierror):
+        unresolvable_ips.add(ip)
+        return ''
 
-        if os.path.isdir(pcap_path):
-            pcap_files = glob.glob(os.path.join(pcap_path, '*.pcap'))
-        elif os.path.isfile(pcap_path) and pcap_path.endswith('.pcap'):
-            pcap_files = [pcap_path]
-        else:
-            print(f"No valid pcap files found at the specified path: {pcap_path}")
-            return
+def run_tshark(pcap_file):
+    cmd = [
+        TSHARK_PATH, '-r', pcap_file, '-T', 'fields',
+        '-E', 'header=y', '-E', 'separator=,', '-E', 'quote=d',
+        '-E', 'occurrence=a', '-2', '-R', 'not tcp.analysis.retransmission'
+    ]
+    for field in FIELDS:
+        cmd += ['-e', field]
 
-        if not pcap_files:
-            print("No pcap files found.")
-            return
-        # Process each pcap file and concatenate the resultant DataFrames
-        df_list = []
-        for pcap_file in pcap_files:
-            df = run_tshark(pcap_file, ip_shelve)
-            if df is not None:
-                df_list.append(df)
+    proc = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    out, err = proc.communicate()
 
-        if not df_list:
-            print("Failed to parse any pcap files.")
-            return
-
-        combined_df = pd.concat(df_list).sort_values(by='frame.time_epoch')
-        combined_df.to_csv(output_csv_file, index=False)
-        print(f"Output file created: {output_csv_file}")
-        if unresolvable_ips:
-            print("Unresolvable IP addresses:", unresolvable_ips)
-
-def run_tshark(pcap_file, ip_shelve):
-    """
-    Run tshark on a pcap file and return the output as a Pandas DataFrame.
-    """
-    command = [TSHARK_PATH, '-r', pcap_file, '-T', 'fields', '-E', 'header=y', '-E', 'separator=,', '-E', 'quote=d', '-E', 'occurrence=a', '-2', '-R', 'not tcp.analysis.retransmission']
-    fields = ['frame.time_epoch', 'eth.src', 'eth.dst', 'ip.src', 'ip.dst', 'tcp.srcport', 'tcp.dstport', 'udp.srcport', 'udp.dstport', '_ws.col.Protocol', 'frame.len', 'dns.qry.name', 'dns.a', 'tls.handshake.extensions_server_name']
-    for field in fields:
-        command += ['-e', field]
-    process = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-    output, error = process.communicate()
-    if process.returncode != 0:
-        print(f"Error running tshark on pcap file: {pcap_file}")
-        print(error.decode())
+    if proc.returncode != 0 or not out:
+        print(f"[!] Failed to parse {pcap_file}")
+        print(err.decode())
         return None
-    
-    # Decode the output and read it into a Pandas DataFrame
-    output = output.decode()
-    data = StringIO(output)
-    df = pd.read_csv(data, low_memory=False)
-    update_ip_hostname_mappings(df, ip_shelve)
+
+    df = pd.read_csv(StringIO(out.decode()), low_memory=False)
+    df['source_file'] = os.path.basename(pcap_file)
     return df
 
-def update_ip_hostname_mappings(df, ip_shelve):
+def extract_dhcp_mapping(df):
+    """
+    Returns: dict mapping ip.src → bootp.option.hostname
+    """
+    if 'bootp.option.hostname' not in df.columns:
+        return {}
+    
+    dhcp_rows = df[df['bootp.option.hostname'].notna()]
+    mapping = {}
+    for _, row in dhcp_rows.iterrows():
+        key = str(row.get('ip.src'))
+        value = str(row.get('bootp.option.hostname')).strip()
+        if key and value:
+            mapping[key] = value
+    return mapping
+
+def enrich_hostnames(df, ip_shelve):
     dns_df = df[df['dns.qry.name'].notna() & df['dns.a'].notna()]
     for _, row in dns_df.iterrows():
-        ips = row['dns.a'].split(',')
-        for ip in (ip.strip() for ip in ips):
-            ip_shelve[ip] = row['dns.qry.name']
+        for ip in str(row['dns.a']).split(','):
+            ip = ip.strip()
+            if ip:
+                ip_shelve[ip] = row['dns.qry.name']
 
     sni_df = df[df['tls.handshake.extensions_server_name'].notna()]
     for _, row in sni_df.iterrows():
-        ip_shelve[row['ip.dst']] = row['tls.handshake.extensions_server_name']
+        ip = row.get('ip.dst')
+        if pd.notna(ip):
+            ip_shelve[ip] = row['tls.handshake.extensions_server_name']
 
     df['src_hostname'] = df['ip.src'].map(lambda x: ip_shelve.get(str(x), reverse_dns(str(x))) if pd.notna(x) else '')
     df['dst_hostname'] = df['ip.dst'].map(lambda x: ip_shelve.get(str(x), reverse_dns(str(x))) if pd.notna(x) else '')
-    df.drop(['dns.qry.name', 'dns.a', 'tls.handshake.extensions_server_name'], axis=1, inplace=True)
 
-def reverse_dns(ip_address):
-    """
-    Attempts to resolve an IP address to a hostname using a reverse DNS lookup; 
-    This function is used as a fallback mechanism in the event that an IP address does not have a corresponding hostname entry in the shelve database.
-    """
-    if not ip_address or not isinstance(ip_address, str) or ip_address.lower() == 'nan':
-        return ''
+    df.drop(['dns.qry.name', 'dns.a', 'tls.handshake.extensions_server_name'], axis=1, inplace=True, errors='ignore')
+    return df
+
+def extract_dhcp_hostnames(pcap_file):
     try:
-        hostname = socket.gethostbyaddr(ip_address)[0]
-        return hostname
-    except (socket.herror, socket.gaierror):
-        unresolvable_ips.add(ip_address)
-        return ''
+        cmd = [
+            TSHARK_PATH, "-r", pcap_file,
+            "-Y", "bootp.option.hostname",
+            "-T", "fields", "-e", "bootp.option.hostname"
+        ]
+        proc = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        out, err = proc.communicate()
+
+        if proc.returncode != 0:
+            print(f"[!] Warning: tshark exited with code {proc.returncode}")
+            print(err.decode())
+
+        hostnames = [line.strip() for line in out.decode().splitlines() if line.strip()]
+        counts = Counter(hostnames)
+
+        if counts:
+            print(f"\n[✓] DHCP Hostnames in {pcap_file}:\n")
+            for hostname, count in counts.most_common():
+                print(f"{count:>4} {hostname}")
+        else:
+            print(f"[!] No DHCP hostnames found in {pcap_file}")
+
+    except Exception as e:
+        print(f"[!] Error running tshark on {pcap_file}: {e}")
+
+def main():
+    if len(sys.argv) != 3:
+        print("Usage: python parse.py <output_csv_file> <path_to_pcap_file_or_directory>")
+        return
+
+    output_csv = sys.argv[1]
+    input_path = sys.argv[2]
+    ip_shelve_path = 'ip_hostname_cache'
+
+    if os.path.isdir(input_path):
+        pcap_files = glob.glob(os.path.join(input_path, '*.pcap')) + glob.glob(os.path.join(input_path, '*.pcapng'))
+    elif os.path.isfile(input_path) and (input_path.endswith('.pcap') or input_path.endswith('.pcapng')):
+        pcap_files = [input_path]
+    else:
+        print("No valid .pcap or .pcapng files found.")
+        return
+
+    if not pcap_files:
+        print("No .pcap files found.")
+        return
+
+    df_list = []
+    with shelve.open(ip_shelve_path) as ip_shelve:
+        for pcap_file in pcap_files:
+            extract_dhcp_hostnames(pcap_file)
+            print(f"[+] Parsing: {pcap_file}")
+            df = run_tshark(pcap_file)
+            if df is not None:
+                dhcp_map = extract_dhcp_mapping(df) # extract DHCP map and enrich
+                df = enrich_hostnames(df, ip_shelve)
+                df['dhcp_hostname'] = df['ip.src'].map(lambda x: dhcp_map.get(str(x), '')) # add dhcp_hostname column (if map exists)
+                if 'bootp.option.hostname' in df.columns:
+                    df.drop(['bootp.option.hostname'], axis=1, inplace=True)
+
+                df_list.append(df)
+
+    if not df_list:
+        print("No data extracted.")
+        return
+
+    final_df = pd.concat(df_list).sort_values(by='frame.time_epoch')
+    final_df.to_csv(output_csv, index=False)
+    print(f"[✓] Done. Output written to: {output_csv}")
+
+    if unresolvable_ips:
+        print(f"[!] Unresolvable IPs: {len(unresolvable_ips)}")
 
 if __name__ == "__main__":
     main()
