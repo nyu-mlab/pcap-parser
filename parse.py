@@ -10,11 +10,8 @@ Examples:
     python parse.py output.csv /path/to/pcap_files
 
 This script uses tshark to parse the pcap files, and verifies that tshark is installed. This script works for *nix.
-
-
-TODO:
-    - Add support for dealing with ARP spoofing (e.g., as a result of output from IoT Inspector.)
 """
+
 import subprocess
 import pandas as pd
 from io import StringIO
@@ -27,17 +24,15 @@ import shelve
 import socket
 
 if platform.system() == "Darwin":
-    # Define the path to tshark within the Wireshark.app package
     TSHARK_PATH = "/Applications/Wireshark.app/Contents/MacOS/tshark"
 elif os.name == "posix":
     assert (TSHARK_PATH := shutil.which("tshark", os.X_OK)), "couldn't find tshark"
 else:
     sys.exit("This script requires *nix.")
 
-unresolvable_ips = set()  # keep track of unresolvable IP addresses
+unresolvable_ips = set()
 
 def main():
-    # Parse the command line arguments
     ip_shelve_path = 'ip_hostname_db'
     with shelve.open(ip_shelve_path) as ip_shelve:
         if len(sys.argv) != 3:
@@ -58,7 +53,7 @@ def main():
         if not pcap_files:
             print("No pcap files found.")
             return
-        # Process each pcap file and concatenate the resultant DataFrames
+
         df_list = []
         for pcap_file in pcap_files:
             df = run_tshark(pcap_file, ip_shelve)
@@ -76,21 +71,28 @@ def main():
             print("Unresolvable IP addresses:", unresolvable_ips)
 
 def run_tshark(pcap_file, ip_shelve):
-    """
-    Run tshark on a pcap file and return the output as a Pandas DataFrame.
-    """
     command = [TSHARK_PATH, '-r', pcap_file, '-T', 'fields', '-E', 'header=y', '-E', 'separator=,', '-E', 'quote=d', '-E', 'occurrence=a', '-2', '-R', 'not tcp.analysis.retransmission']
-    fields = ['frame.time_epoch', 'eth.src', 'eth.dst', 'ip.src', 'ip.dst', 'tcp.srcport', 'tcp.dstport', 'udp.srcport', 'udp.dstport', '_ws.col.Protocol', 'frame.len', 'dns.qry.name', 'dns.a', 'tls.handshake.extensions_server_name']
+    fields = [
+        'frame.time_epoch', 'eth.src', 'eth.dst',
+        'ip.src', 'ip.dst',
+        'tcp.srcport', 'tcp.dstport',
+        'udp.srcport', 'udp.dstport',
+        '_ws.col.Protocol', 'frame.len',
+        'dns.qry.name', 'dns.a',
+        'tls.handshake.extensions_server_name',
+        'http.user_agent' 
+    ]
     for field in fields:
         command += ['-e', field]
+
     process = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
     output, error = process.communicate()
+
     if process.returncode != 0:
         print(f"Error running tshark on pcap file: {pcap_file}")
         print(error.decode())
         return None
-    
-    # Decode the output and read it into a Pandas DataFrame
+
     output = output.decode()
     data = StringIO(output)
     df = pd.read_csv(data, low_memory=False)
@@ -113,10 +115,6 @@ def update_ip_hostname_mappings(df, ip_shelve):
     df.drop(['dns.qry.name', 'dns.a', 'tls.handshake.extensions_server_name'], axis=1, inplace=True)
 
 def reverse_dns(ip_address):
-    """
-    Attempts to resolve an IP address to a hostname using a reverse DNS lookup; 
-    This function is used as a fallback mechanism in the event that an IP address does not have a corresponding hostname entry in the shelve database.
-    """
     if not ip_address or not isinstance(ip_address, str) or ip_address.lower() == 'nan':
         return ''
     try:
