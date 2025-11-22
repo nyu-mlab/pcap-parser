@@ -11,13 +11,6 @@ Examples:
 
 This script uses tshark to parse the pcap files, and verifies that tshark is installed. This script works for *nix.
 """
-"""
-Parses pcap files specified by the user, either as individual files or all files in a directory,
-fills in hostnames (including DHCP), and outputs the results to a csv file.
-
-Usage:
-    python parse.py <output_csv_file> <path_to_pcap_file_or_directory>
-"""
 import subprocess
 import pandas as pd
 import os
