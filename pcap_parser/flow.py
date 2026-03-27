@@ -11,7 +11,6 @@ Usage:
 
 import argparse
 import pandas as pd
-import sys
 import tldextract
 
 def extract_main_domain(hostname):
