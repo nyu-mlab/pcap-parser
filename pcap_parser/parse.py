@@ -22,9 +22,11 @@ from io import StringIO
 import shelve
 from collections import Counter
 
-TSHARK_PATH = shutil.which("tshark") # detect shark location
-if not TSHARK_PATH:
-    sys.exit("Couldn't find tshark in PATH.")
+def _find_tshark():
+    path = shutil.which("tshark")
+    if not path:
+        sys.exit("tshark not found in PATH. install wireshark: https://www.wireshark.org/download.html")
+    return path
 
 FIELDS = [
     'frame.time_epoch',
@@ -50,9 +52,10 @@ def reverse_dns(ip):
         unresolvable_ips.add(ip)
         return ''
 
-def run_tshark(pcap_file):
+def run_tshark(pcap_file, tshark_path=None):
+    tshark_path = tshark_path or _find_tshark()
     cmd = [
-        TSHARK_PATH, '-r', pcap_file, '-T', 'fields',
+        tshark_path, '-r', pcap_file, '-T', 'fields',
         '-E', 'header=y', '-E', 'separator=,', '-E', 'quote=d',
         '-E', 'occurrence=a', '-2', '-R', 'not tcp.analysis.retransmission'
     ]
@@ -107,10 +110,11 @@ def enrich_hostnames(df, ip_shelve):
     df.drop(['dns.qry.name', 'dns.a', 'tls.handshake.extensions_server_name'], axis=1, inplace=True, errors='ignore')
     return df
 
-def extract_dhcp_hostnames(pcap_file):
+def extract_dhcp_hostnames(pcap_file, tshark_path=None):
+    tshark_path = tshark_path or _find_tshark()
     try:
         cmd = [
-            TSHARK_PATH, "-r", pcap_file,
+            tshark_path, "-r", pcap_file,
             "-Y", "bootp.option.hostname",
             "-T", "fields", "-e", "bootp.option.hostname"
         ]
@@ -141,6 +145,7 @@ def main():
 
     output_csv = sys.argv[1]
     input_path = sys.argv[2]
+    tshark_path = _find_tshark()
     ip_shelve_path = 'ip_hostname_cache'
 
     if os.path.isdir(input_path):
@@ -158,9 +163,9 @@ def main():
     df_list = []
     with shelve.open(ip_shelve_path) as ip_shelve:
         for pcap_file in pcap_files:
-            extract_dhcp_hostnames(pcap_file)
+            extract_dhcp_hostnames(pcap_file, tshark_path)
             print(f"[+] Parsing: {pcap_file}")
-            df = run_tshark(pcap_file)
+            df = run_tshark(pcap_file, tshark_path)
             if df is not None:
                 dhcp_map = extract_dhcp_mapping(df) # extract DHCP map and enrich
                 df = enrich_hostnames(df, ip_shelve)
