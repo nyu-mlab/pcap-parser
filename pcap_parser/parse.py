@@ -11,6 +11,7 @@ Examples:
 
 This script uses tshark to parse the pcap files, and verifies that tshark is installed. This script works for *nix.
 """
+import argparse
 import subprocess
 import pandas as pd
 import os
@@ -138,14 +139,18 @@ def extract_dhcp_hostnames(pcap_file, tshark_path=None):
         print(f"[!] Error running tshark on {pcap_file}: {e}")
 
 def main():
-    if len(sys.argv) != 3:
-        print("Usage: python parse.py <output_csv_file> <path_to_pcap_file_or_directory>")
-        return
+    parser = argparse.ArgumentParser(
+        description="parse pcap files and extract enriched packet data to csv"
+    )
+    parser.add_argument("output", help="path for the output csv file")
+    parser.add_argument("input", help="path to a pcap file or directory of pcap files")
+    parser.add_argument("--cache-dir", default=".", help="directory for the hostname cache (default: current directory)")
+    args = parser.parse_args()
 
-    output_csv = sys.argv[1]
-    input_path = sys.argv[2]
+    output_csv = args.output
+    input_path = args.input
     tshark_path = _find_tshark()
-    ip_shelve_path = 'ip_hostname_cache'
+    ip_shelve_path = os.path.join(args.cache_dir, 'ip_hostname_cache')
 
     if os.path.isdir(input_path):
         pcap_files = glob.glob(os.path.join(input_path, '*.pcap')) + glob.glob(os.path.join(input_path, '*.pcapng'))
