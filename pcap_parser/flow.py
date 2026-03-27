@@ -14,6 +14,7 @@ Note:
     Requires pandas and tldextract. Platform-independent.
 """
 
+import argparse
 import pandas as pd
 import sys
 import tldextract
@@ -92,13 +93,14 @@ def process_pcap_data(input_csv, output_csv):
     print(f"[✓] Done. Saved {len(flows)} flows to {output_csv}")
 
 def main():
-    if len(sys.argv) != 3:
-        print("Usage: python flow.py <input_csv_file> <output_csv_file>")
-        sys.exit(1)
+    parser = argparse.ArgumentParser(
+        description="aggregate parsed packet csv into network flows"
+    )
+    parser.add_argument("input", help="path to the parsed csv file (output of pcap-parse)")
+    parser.add_argument("output", help="path for the output flows csv file")
+    args = parser.parse_args()
 
-    input_csv_file = sys.argv[1]
-    output_csv_file = sys.argv[2]
-    process_pcap_data(input_csv_file, output_csv_file)
+    process_pcap_data(args.input, args.output)
 
 if __name__ == "__main__":
     main()
