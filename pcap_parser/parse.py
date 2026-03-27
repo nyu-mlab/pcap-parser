@@ -1,15 +1,12 @@
 """
-Parses pcap files specified by the user, either as individual files or all files in a directory,
-fills in the hostnames, and outputs the results to a csv file.
+Parse pcap files and extract enriched packet data to csv.
+
+Requires tshark (part of wireshark) to be installed and available in PATH.
 
 Usage:
-    python parse.py <output_csv_file> <path_to_pcap_file_or_directory>
-
-Examples:
-    python parse.py output.csv /path/to/single.pcap
-    python parse.py output.csv /path/to/pcap_files
-
-This script uses tshark to parse the pcap files, and verifies that tshark is installed. This script works for *nix.
+    pcap-parse output.csv /path/to/capture.pcap
+    pcap-parse output.csv /path/to/pcap_directory/
+    pcap-parse --cache-dir /tmp output.csv /path/to/capture.pcap
 """
 import argparse
 import subprocess
