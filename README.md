@@ -19,10 +19,10 @@ Python tool to parse pcap files and extract flow-related network traffic informa
 ## Installation
 
 ```bash
-pip install git+https://github.com/nyu-mlab/pcap-parser.git
+pip install pcap-parser
 ```
 
-Or for development:
+For development:
 
 ```bash
 git clone https://github.com/nyu-mlab/pcap-parser.git
