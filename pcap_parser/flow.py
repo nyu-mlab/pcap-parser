@@ -22,7 +22,7 @@ def extract_main_domain(hostname):
     try:
         extracted = tldextract.extract(str(hostname))
         return f"{extracted.domain}.{extracted.suffix}" if extracted.suffix else ''
-    except:
+    except (ValueError, AttributeError):
         return None
 
 def get_src_port(row):

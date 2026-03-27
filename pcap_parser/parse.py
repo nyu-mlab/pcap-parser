@@ -16,7 +16,6 @@ import pandas as pd
 import os
 import sys
 import glob
-import platform
 import shutil
 import socket
 from io import StringIO
