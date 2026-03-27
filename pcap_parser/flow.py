@@ -35,24 +35,24 @@ def process_pcap_data(input_csv, output_csv):
     df = pd.read_csv(input_csv)
     df['frame.time_epoch'] = pd.to_datetime(df['frame.time_epoch'], unit='s', errors='coerce')
 
-    df = df[df['_ws.col.protocol'].isin(['TCP', 'TLSv1.2', 'UDP', 'TLS', 'DNS'])]
+    df = df[df['_ws.col.Protocol'].isin(['TCP', 'TLSv1.2', 'UDP', 'TLS', 'DNS'])]
 
     # Combine ports
     df['src_port'] = df.apply(get_src_port, axis=1)
     df['dst_port'] = df.apply(get_dst_port, axis=1)
 
     # Drop if missing core fields
-    df = df.dropna(subset=['ip.src', 'ip.dst', 'src_port', 'dst_port', '_ws.col.protocol'])
+    df = df.dropna(subset=['ip.src', 'ip.dst', 'src_port', 'dst_port', '_ws.col.Protocol'])
 
     # Sort
     df = df.sort_values(by=[
         'ip.src', 'ip.dst', 'src_port', 'dst_port',
-        '_ws.col.protocol', 'frame.time_epoch'
+        '_ws.col.Protocol', 'frame.time_epoch'
     ])
 
     # Inter-arrival time
     df['inter_arrival_time'] = df.groupby([
-        'ip.src', 'ip.dst', 'src_port', 'dst_port', '_ws.col.protocol'
+        'ip.src', 'ip.dst', 'src_port', 'dst_port', '_ws.col.Protocol'
     ])['frame.time_epoch'].diff().dt.total_seconds()
 
     # Domain extraction
@@ -61,7 +61,7 @@ def process_pcap_data(input_csv, output_csv):
 
     # Group into flows
     grouped = df.groupby([
-        'ip.src', 'ip.dst', 'src_port', 'dst_port', '_ws.col.protocol'
+        'ip.src', 'ip.dst', 'src_port', 'dst_port', '_ws.col.Protocol'
     ])
 
     flows = grouped.agg(
@@ -81,7 +81,7 @@ def process_pcap_data(input_csv, output_csv):
 
     flows = flows[[
         'start_ts', 'end_ts', 'ip.src', 'ip.dst',
-        'src_port', 'dst_port', '_ws.col.protocol',
+        'src_port', 'dst_port', '_ws.col.Protocol',
         'byte_count', 'packet_count', 'avg_inter_arrival_time',
         'src_hostname', 'dst_hostname', 'dhcp_hostname',
         'src_main_domain', 'dst_main_domain',

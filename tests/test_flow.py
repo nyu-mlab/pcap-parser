@@ -57,7 +57,7 @@ class TestProcessPcapData:
             "tcp.dstport": [80] * 5,
             "udp.srcport": [float("nan")] * 5,
             "udp.dstport": [float("nan")] * 5,
-            "_ws.col.protocol": ["TCP"] * 5,
+            "_ws.col.Protocol": ["TCP"] * 5,
             "frame.len": [54, 54, 100, 100, 100],
             "src_hostname": [""] * 5,
             "dst_hostname": ["example.com"] * 5,
@@ -88,7 +88,7 @@ class TestProcessPcapData:
         flows = pd.read_csv(output_csv)
         expected = [
             "start_ts", "end_ts", "ip.src", "ip.dst",
-            "src_port", "dst_port", "_ws.col.protocol",
+            "src_port", "dst_port", "_ws.col.Protocol",
             "byte_count", "packet_count",
         ]
         for col in expected:
