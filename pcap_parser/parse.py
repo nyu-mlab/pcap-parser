@@ -41,15 +41,14 @@ FIELDS = [
     'bootp.option.hostname'
 ]
 
-unresolvable_ips = set()
-
-def reverse_dns(ip):
+def reverse_dns(ip, unresolvable_ips=None):
     if not ip or not isinstance(ip, str) or ip.lower() == 'nan':
         return ''
     try:
         return socket.gethostbyaddr(ip)[0]
     except (socket.herror, socket.gaierror):
-        unresolvable_ips.add(ip)
+        if unresolvable_ips is not None:
+            unresolvable_ips.add(ip)
         return ''
 
 def run_tshark(pcap_file, tshark_path=None):
@@ -90,7 +89,7 @@ def extract_dhcp_mapping(df):
             mapping[key] = value
     return mapping
 
-def enrich_hostnames(df, ip_shelve):
+def enrich_hostnames(df, ip_shelve, unresolvable_ips=None):
     dns_df = df[df['dns.qry.name'].notna() & df['dns.a'].notna()]
     for _, row in dns_df.iterrows():
         for ip in str(row['dns.a']).split(','):
@@ -104,8 +103,8 @@ def enrich_hostnames(df, ip_shelve):
         if pd.notna(ip):
             ip_shelve[ip] = row['tls.handshake.extensions_server_name']
 
-    df['src_hostname'] = df['ip.src'].map(lambda x: ip_shelve.get(str(x), reverse_dns(str(x))) if pd.notna(x) else '')
-    df['dst_hostname'] = df['ip.dst'].map(lambda x: ip_shelve.get(str(x), reverse_dns(str(x))) if pd.notna(x) else '')
+    df['src_hostname'] = df['ip.src'].map(lambda x: ip_shelve.get(str(x), reverse_dns(str(x), unresolvable_ips)) if pd.notna(x) else '')
+    df['dst_hostname'] = df['ip.dst'].map(lambda x: ip_shelve.get(str(x), reverse_dns(str(x), unresolvable_ips)) if pd.notna(x) else '')
 
     df.drop(['dns.qry.name', 'dns.a', 'tls.handshake.extensions_server_name'], axis=1, inplace=True, errors='ignore')
     return df
@@ -160,6 +159,7 @@ def main():
         print("No .pcap files found.")
         return
 
+    unresolvable_ips = set()
     df_list = []
     with shelve.open(ip_shelve_path) as ip_shelve:
         for pcap_file in pcap_files:
@@ -168,7 +168,7 @@ def main():
             df = run_tshark(pcap_file, tshark_path)
             if df is not None:
                 dhcp_map = extract_dhcp_mapping(df) # extract DHCP map and enrich
-                df = enrich_hostnames(df, ip_shelve)
+                df = enrich_hostnames(df, ip_shelve, unresolvable_ips)
                 df['dhcp_hostname'] = df['ip.src'].map(lambda x: dhcp_map.get(str(x), '')) # add dhcp_hostname column (if map exists)
                 if 'bootp.option.hostname' in df.columns:
                     df.drop(['bootp.option.hostname'], axis=1, inplace=True)
