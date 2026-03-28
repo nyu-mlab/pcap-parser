@@ -19,7 +19,7 @@ import urllib.error
 import pandas as pd
 
 
-DEVID_API_URL = "https://nyu-mlab--dev-id-predict.modal.run"
+DEVID_API_URL = "https://rameen-mahmood--dev-id-predict.modal.run"
 DEVID_API_KEY = "momo"
 
 
@@ -65,14 +65,13 @@ def aggregate_devices(input_csv):
 def identify_device(device):
     """Call the dev-id Modal API to predict device vendor."""
     fields = {
-        "dhcp_hostname": device.get("dhcp_hostname") or "unknown",
-        "remote_hostnames": ", ".join(device.get("top_destinations") or []) or "unknown",
-        "user_agent_info": device.get("user_agent") or "unknown",
-        "oui_friendly": device.get("oui_vendor") or "unknown",
+        "DHCP Hostname": device.get("dhcp_hostname") or "unknown",
+        "Remote Hostnames": ", ".join(device.get("top_destinations") or []) or "unknown",
+        "User Agent": device.get("user_agent") or "unknown",
+        "OUI": device.get("oui_vendor") or "unknown",
     }
 
     payload = json.dumps({
-        "api_key": DEVID_API_KEY,
         "mac_address": device.get("mac", ""),
         "fields": fields,
     }).encode()
@@ -80,7 +79,10 @@ def identify_device(device):
     req = urllib.request.Request(
         DEVID_API_URL,
         data=payload,
-        headers={"Content-Type": "application/json"},
+        headers={
+            "Content-Type": "application/json",
+            "x-api-key": DEVID_API_KEY,
+        },
     )
 
     try:
@@ -151,7 +153,7 @@ def print_devices(devices, identify=False):
             vendor = identification["vendor"]
             source = identification["source"]
             explanation = identification["explanation"]
-            print(f"  Identified As:  {vendor} (via {source})")
+            print(f"  Identified As:  {vendor.strip()} (via {source})")
             if explanation:
                 if len(explanation) > 100:
                     explanation = explanation[:97] + "..."
