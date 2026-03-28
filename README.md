@@ -12,6 +12,8 @@ Python tool to parse pcap files and extract flow-related network traffic informa
 - Hostname enrichment from DNS queries, TLS SNI, DHCP, and reverse DNS
 - Device metadata extraction (OUI vendor, HTTP user-agent)
 - Flow aggregation with packet counts, byte counts, and inter-arrival times
+- Device discovery with per-device traffic summaries
+- LLM-powered device identification via [IoT Inspector](https://github.com/nyu-mlab/iot-inspector-client)
 - Domain extraction from hostnames
 - Persistent IP-to-hostname cache across runs
 
@@ -56,6 +58,26 @@ After parsing, aggregate packets into flows:
 
 ```bash
 pcap-flow output.csv aggregated_flows.csv
+```
+
+### List devices
+
+List all devices found in the capture:
+
+```bash
+pcap-devices output.csv
+```
+
+Identify devices using a fine-tuned LLM:
+
+```bash
+pcap-devices output.csv --identify
+```
+
+Output as JSON:
+
+```bash
+pcap-devices output.csv --json
 ```
 
 ### Output
