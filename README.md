@@ -1,5 +1,9 @@
 # pcap-parser
 
+[![PyPI](https://img.shields.io/pypi/v/pcap-extract)](https://pypi.org/project/pcap-extract/)
+[![CI](https://github.com/nyu-mlab/pcap-parser/actions/workflows/ci-parse.yml/badge.svg)](https://github.com/nyu-mlab/pcap-parser/actions/workflows/ci-parse.yml)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+
 Python tool to parse pcap files and extract flow-related network traffic information. Extracts hostnames from DNS, TLS SNI, DHCP, and reverse DNS lookups, then aggregates packets into flows with statistics.
 
 ## Features
@@ -19,7 +23,7 @@ Python tool to parse pcap files and extract flow-related network traffic informa
 ## Installation
 
 ```bash
-pip install git+https://github.com/nyu-mlab/pcap-parser.git
+pip install pcap-extract
 ```
 
 Or for development:
@@ -79,6 +83,10 @@ pcap-flow output.csv aggregated_flows.csv
 pytest tests/ -v
 ```
 
+## Contributing
+
+Contributions are welcome. See [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines.
+
 ## License
 
-MIT — see [LICENSE](LICENSE) for details.
+MIT - see [LICENSE](LICENSE) for details.
