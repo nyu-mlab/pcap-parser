@@ -43,4 +43,5 @@ pcap-flow = "pcap_parser.flow:main"
 dev = [
     "pytest",
     "ruff",
+    "build",
 ]
