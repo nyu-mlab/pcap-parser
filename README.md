@@ -4,18 +4,72 @@
 [![CI](https://github.com/nyu-mlab/pcap-parser/actions/workflows/ci-parse.yml/badge.svg)](https://github.com/nyu-mlab/pcap-parser/actions/workflows/ci-parse.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-Python tool to parse pcap files and extract flow-related network traffic information. Extracts hostnames from DNS, TLS SNI, DHCP, and reverse DNS lookups, then aggregates packets into flows with statistics.
+Extract devices, flows, and hostnames from pcap files.
+
+## Quick Start
+
+```bash
+pip install pcap-extract
+```
+
+Parse a capture and get an instant overview:
+
+```bash
+pcap-parse output.csv capture.pcap
+pcap-summary output.csv
+```
+
+```
+╭──────────────────────────── Capture Overview ────────────────────────────╮
+│   Packets:    12,847                                                     │
+│   Traffic:    8.3 MB                                                     │
+│   Devices:    14                                                         │
+│   Time Range: 2025-01-15 09:00:12 to 2025-01-15 09:30:45 (30.6m)        │
+╰──────────────────────────────────────────────────────────────────────────╯
+╭──────────────────────────────── Protocols ────────────────────────────────╮
+│ ┏━━━━━━━━━━┳━━━━━━━━━┳━━━━━━━┓                                           │
+│ ┃ Protocol ┃ Packets ┃ Share ┃                                           │
+│ ┡━━━━━━━━━━╇━━━━━━━━━╇━━━━━━━┩                                           │
+│ │ TCP      │   8,421 │ 65.5% │                                           │
+│ │ TLS      │   2,103 │ 16.4% │                                           │
+│ │ DNS      │   1,547 │ 12.0% │                                           │
+│ │ UDP      │     776 │  6.0% │                                           │
+│ └──────────┴─────────┴───────┘                                           │
+╰──────────────────────────────────────────────────────────────────────────╯
+```
+
+List devices on the network:
+
+```bash
+pcap-devices output.csv
+```
+
+```
+                               Devices
+┏━━━┳━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━┳━━━━━━━━━━━━━┳━━━━━━━━━┳━━━━━━━━━┓
+┃ # ┃ MAC Address       ┃ Vendor       ┃ Hostname    ┃ Packets ┃ Traffic ┃
+┡━━━╇━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━╇━━━━━━━━━━━━━╇━━━━━━━━━╇━━━━━━━━━┩
+│ 1 │ AA:BB:CC:11:22:33 │ Apple, Inc.  │ macbook-pro │   4,521 │ 3.2 MB  │
+│ 2 │ AA:BB:CC:44:55:66 │ Google, Inc. │ pixel-6     │   2,847 │ 1.8 MB  │
+│ 3 │ AA:BB:CC:77:88:99 │ Amazon.com   │ echo-dot    │     892 │ 412.0 KB│
+└───┴───────────────────┴──────────────┴─────────────┴─────────┴─────────┘
+```
+
+Identify unknown devices with a fine-tuned LLM:
+
+```bash
+pcap-devices output.csv --identify
+```
 
 ## Features
 
 - Parse `.pcap` and `.pcapng` files using tshark
-- Hostname enrichment from DNS queries, TLS SNI, DHCP, and reverse DNS
-- Device metadata extraction (OUI vendor, HTTP user-agent)
-- Flow aggregation with packet counts, byte counts, and inter-arrival times
-- Device discovery with per-device traffic summaries
+- Instant capture summaries with protocol breakdown, top talkers, and top destinations
+- Per-device traffic profiles with OUI vendor, DHCP hostname, and traffic volume
 - LLM-powered device identification via [IoT Inspector](https://github.com/nyu-mlab/iot-inspector-client)
-- Domain extraction from hostnames
-- Persistent IP-to-hostname cache across runs
+- Hostname enrichment from DNS, TLS SNI, DHCP, and reverse DNS
+- Flow aggregation with packet counts, byte counts, and inter-arrival times
+- JSON output for all commands (`--json`)
 
 ## Requirements
 
@@ -40,47 +94,32 @@ pip install -e ".[dev]"
 
 ### Parse pcap files
 
-Parse a single file:
-
 ```bash
-pcap-parse output.csv /path/to/capture.pcap
-```
-
-Parse all pcap files in a directory:
-
-```bash
+pcap-parse output.csv capture.pcap
 pcap-parse output.csv /path/to/pcap_directory/
 ```
 
-### Aggregate into flows
-
-After parsing, aggregate packets into flows:
+### Get a quick summary
 
 ```bash
-pcap-flow output.csv aggregated_flows.csv
+pcap-summary output.csv
 ```
 
 ### List devices
 
-List all devices found in the capture:
-
 ```bash
 pcap-devices output.csv
+pcap-devices output.csv --identify    # LLM-powered device identification
+pcap-devices output.csv --json        # machine-readable output
 ```
 
-Identify devices using a fine-tuned LLM:
+### Aggregate into flows
 
 ```bash
-pcap-devices output.csv --identify
+pcap-flow output.csv flows.csv
 ```
 
-Output as JSON:
-
-```bash
-pcap-devices output.csv --json
-```
-
-### Output
+### Output columns
 
 `pcap-parse` produces a CSV with columns including:
 
@@ -96,8 +135,6 @@ pcap-devices output.csv --json
 | `dhcp_hostname` | DHCP-advertised hostname |
 | `eth.src.oui_resolved` | Device vendor from MAC OUI |
 | `http.user_agent` | HTTP user-agent string |
-
-`pcap-flow` aggregates these into flows with start/end timestamps, byte counts, packet counts, and average inter-arrival times.
 
 ## Running tests
 
