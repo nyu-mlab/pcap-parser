@@ -28,6 +28,7 @@ classifiers = [
 dependencies = [
     "pandas",
     "tldextract",
+    "rich",
 ]
 
 [project.urls]
