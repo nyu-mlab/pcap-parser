@@ -19,24 +19,9 @@ pcap-parse output.csv capture.pcap
 pcap-summary output.csv
 ```
 
-```
-╭──────────────────────────── Capture Overview ────────────────────────────╮
-│   Packets:    12,847                                                     │
-│   Traffic:    8.3 MB                                                     │
-│   Devices:    14                                                         │
-│   Time Range: 2025-01-15 09:00:12 to 2025-01-15 09:30:45 (30.6m)        │
-╰──────────────────────────────────────────────────────────────────────────╯
-╭──────────────────────────────── Protocols ────────────────────────────────╮
-│ ┏━━━━━━━━━━┳━━━━━━━━━┳━━━━━━━┓                                           │
-│ ┃ Protocol ┃ Packets ┃ Share ┃                                           │
-│ ┡━━━━━━━━━━╇━━━━━━━━━╇━━━━━━━┩                                           │
-│ │ TCP      │   8,421 │ 65.5% │                                           │
-│ │ TLS      │   2,103 │ 16.4% │                                           │
-│ │ DNS      │   1,547 │ 12.0% │                                           │
-│ │ UDP      │     776 │  6.0% │                                           │
-│ └──────────┴─────────┴───────┘                                           │
-╰──────────────────────────────────────────────────────────────────────────╯
-```
+<p align="center">
+  <img src="docs/images/pcap-summary.svg" width="600" alt="pcap-summary output">
+</p>
 
 List devices on the network:
 
@@ -44,16 +29,9 @@ List devices on the network:
 pcap-devices output.csv
 ```
 
-```
-                               Devices
-┏━━━┳━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━┳━━━━━━━━━━━━━┳━━━━━━━━━┳━━━━━━━━━┓
-┃ # ┃ MAC Address       ┃ Vendor       ┃ Hostname    ┃ Packets ┃ Traffic ┃
-┡━━━╇━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━╇━━━━━━━━━━━━━╇━━━━━━━━━╇━━━━━━━━━┩
-│ 1 │ AA:BB:CC:11:22:33 │ Apple, Inc.  │ macbook-pro │   4,521 │ 3.2 MB  │
-│ 2 │ AA:BB:CC:44:55:66 │ Google, Inc. │ pixel-6     │   2,847 │ 1.8 MB  │
-│ 3 │ AA:BB:CC:77:88:99 │ Amazon.com   │ echo-dot    │     892 │ 412.0 KB│
-└───┴───────────────────┴──────────────┴─────────────┴─────────┴─────────┘
-```
+<p align="center">
+  <img src="docs/images/pcap-devices.svg" width="700" alt="pcap-devices output">
+</p>
 
 Identify unknown devices with a fine-tuned LLM:
 
