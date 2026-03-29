@@ -17,10 +17,14 @@ import urllib.request
 import urllib.error
 
 import pandas as pd
+from rich.console import Console
+from rich.table import Table
 
 
 DEVID_API_URL = "https://rameen-mahmood--dev-id-predict.modal.run"
 DEVID_API_KEY = "momo"
+
+console = Console()
 
 
 def aggregate_devices(input_csv):
@@ -28,7 +32,7 @@ def aggregate_devices(input_csv):
     df = pd.read_csv(input_csv)
 
     if "eth.src" not in df.columns:
-        print("[!] No eth.src column found. Is this a pcap-parse output file?")
+        console.print("[bold red][!] No eth.src column found. Is this a pcap-parse output file?[/]")
         sys.exit(1)
 
     df = df[df["eth.src"].notna()]
@@ -116,52 +120,61 @@ def _format_bytes(n):
 
 
 def print_devices(devices, identify=False):
-    """Print device table to stdout."""
+    """Print device table to stdout using rich."""
     if not devices:
-        print("[!] No devices found.")
+        console.print("[bold yellow][!] No devices found.[/]")
         return
 
     if identify:
-        print(f"[+] Identifying {len(devices)} devices via dev-id API...")
+        console.print(f"\n[bold cyan][+] Identifying {len(devices)} devices via device ID API...[/]\n")
+
+    table = Table(
+        title="Devices",
+        show_header=True,
+        header_style="bold cyan",
+        border_style="dim",
+        title_style="bold white",
+    )
+
+    table.add_column("#", style="dim", width=3)
+    table.add_column("MAC Address", style="bold")
+    table.add_column("Vendor", style="green")
+    table.add_column("Hostname", style="yellow")
+    table.add_column("IPs", style="white")
+    table.add_column("Packets", justify="right", style="white")
+    table.add_column("Traffic", justify="right", style="magenta")
+    table.add_column("Top Destinations", style="cyan")
+    if identify:
+        table.add_column("Identified As", style="bold green")
 
     for i, device in enumerate(devices):
-        identification = None
+        ips = ", ".join(device["ips"][:3])
+        if len(device["ips"]) > 3:
+            ips += f" (+{len(device['ips']) - 3})"
+
+        destinations = ", ".join(device["top_destinations"][:3])
+
+        row = [
+            str(i + 1),
+            device["mac"],
+            device["oui_vendor"] or "-",
+            device["dhcp_hostname"] or "-",
+            ips or "-",
+            f"{device['packet_count']:,}",
+            _format_bytes(device["byte_count"]),
+            destinations or "-",
+        ]
+
         if identify:
             identification = identify_device(device)
-
-        print()
-        print(f"  Device {i + 1}")
-        print(f"  {'=' * 50}")
-        print(f"  MAC:            {device['mac']}")
-        if device["oui_vendor"]:
-            print(f"  OUI Vendor:     {device['oui_vendor']}")
-        if device["dhcp_hostname"]:
-            print(f"  DHCP Hostname:  {device['dhcp_hostname']}")
-        if device["ips"]:
-            print(f"  IPs:            {', '.join(device['ips'][:5])}")
-        if device["user_agent"]:
-            ua = device["user_agent"]
-            if len(ua) > 80:
-                ua = ua[:77] + "..."
-            print(f"  User-Agent:     {ua}")
-        print(f"  Packets:        {device['packet_count']:,}")
-        print(f"  Traffic:        {_format_bytes(device['byte_count'])}")
-        if device["top_destinations"]:
-            print(f"  Top Hosts:      {', '.join(device['top_destinations'][:3])}")
-
-        if identification:
-            vendor = identification["vendor"]
+            vendor = identification["vendor"].strip()
             source = identification["source"]
-            explanation = identification["explanation"]
-            print(f"  Identified As:  {vendor.strip()} (via {source})")
-            if explanation:
-                if len(explanation) > 100:
-                    explanation = explanation[:97] + "..."
-                print(f"  Explanation:    {explanation}")
+            row.append(f"{vendor} ({source})")
 
-    print()
-    print(f"  Total: {len(devices)} devices")
-    print()
+        table.add_row(*row)
+
+    console.print(table)
+    console.print(f"\n  [bold]{len(devices)}[/] devices found\n")
 
 
 def main():
@@ -170,7 +183,7 @@ def main():
     )
     parser.add_argument("input", help="path to the parsed csv file (output of pcap-parse)")
     parser.add_argument("--identify", action="store_true",
-                        help="identify devices using the dev-id LLM API")
+                        help="identify devices using the device ID LLM API")
     parser.add_argument("--json", action="store_true", dest="output_json",
                         help="output as json instead of formatted table")
     args = parser.parse_args()

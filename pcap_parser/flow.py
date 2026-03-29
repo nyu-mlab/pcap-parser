@@ -26,10 +26,21 @@ def get_src_port(row):
 def get_dst_port(row):
     return row['tcp.dstport'] if pd.notna(row['tcp.dstport']) else row['udp.dstport']
 
+def _normalize_protocol_col(df):
+    """Handle both _ws.col.Protocol and _ws.col.protocol from different tshark versions."""
+    if '_ws.col.Protocol' in df.columns:
+        return '_ws.col.Protocol'
+    if '_ws.col.protocol' in df.columns:
+        df.rename(columns={'_ws.col.protocol': '_ws.col.Protocol'}, inplace=True)
+        return '_ws.col.Protocol'
+    raise KeyError("No protocol column found. Expected _ws.col.Protocol or _ws.col.protocol.")
+
+
 def process_pcap_data(input_csv, output_csv):
     df = pd.read_csv(input_csv)
     df['frame.time_epoch'] = pd.to_datetime(df['frame.time_epoch'], unit='s', errors='coerce')
 
+    _normalize_protocol_col(df)
     df = df[df['_ws.col.Protocol'].isin(['TCP', 'TLSv1.2', 'UDP', 'TLS', 'DNS'])]
 
     # Combine ports
