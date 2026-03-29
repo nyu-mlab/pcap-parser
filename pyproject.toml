@@ -40,6 +40,7 @@ Issues = "https://github.com/nyu-mlab/pcap-parser/issues"
 pcap-parse = "pcap_parser.parse:main"
 pcap-flow = "pcap_parser.flow:main"
 pcap-devices = "pcap_parser.devices:main"
+pcap-summary = "pcap_parser.summary:main"
 
 [project.optional-dependencies]
 dev = [
