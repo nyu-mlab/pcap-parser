@@ -72,10 +72,16 @@ def summarize(input_csv):
     if "eth.src" in df.columns:
         device_count = df["eth.src"].nunique()
 
-    # protocol breakdown
-    protocols = {}
+    # protocol breakdown - handle both column name variants
+    proto_col = None
     if "_ws.col.Protocol" in df.columns:
-        protocols = df["_ws.col.Protocol"].value_counts().head(8).to_dict()
+        proto_col = "_ws.col.Protocol"
+    elif "_ws.col.protocol" in df.columns:
+        proto_col = "_ws.col.protocol"
+
+    protocols = {}
+    if proto_col:
+        protocols = df[proto_col].value_counts().head(8).to_dict()
 
     # top talkers (by bytes sent)
     top_talkers = {}
