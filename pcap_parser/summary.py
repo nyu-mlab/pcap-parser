@@ -9,14 +9,12 @@ Usage:
 """
 
 import argparse
-import sys
 from datetime import datetime
 
 import pandas as pd
 from rich.console import Console
 from rich.table import Table
 from rich.panel import Panel
-from rich.columns import Columns
 from rich.text import Text
 
 
@@ -117,14 +115,14 @@ def print_summary(stats):
     """Print summary using rich panels and tables."""
     # overview panel
     overview = Text()
-    overview.append(f"  Packets:    ", style="dim")
+    overview.append("  Packets:    ", style="dim")
     overview.append(f"{stats['total_packets']:,}\n", style="bold white")
-    overview.append(f"  Traffic:    ", style="dim")
+    overview.append("  Traffic:    ", style="dim")
     overview.append(f"{_format_bytes(stats['total_bytes'])}\n", style="bold magenta")
-    overview.append(f"  Devices:    ", style="dim")
+    overview.append("  Devices:    ", style="dim")
     overview.append(f"{stats['device_count']}\n", style="bold cyan")
     if stats["start_ts"] is not None:
-        overview.append(f"  Time Range: ", style="dim")
+        overview.append("  Time Range: ", style="dim")
         overview.append(
             f"{_format_timestamp(stats['start_ts'])} to {_format_timestamp(stats['end_ts'])}",
             style="white",

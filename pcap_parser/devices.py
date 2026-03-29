@@ -19,8 +19,6 @@ import urllib.error
 import pandas as pd
 from rich.console import Console
 from rich.table import Table
-from rich.panel import Panel
-from rich.text import Text
 
 
 DEVID_API_URL = "https://rameen-mahmood--dev-id-predict.modal.run"
