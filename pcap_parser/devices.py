@@ -6,23 +6,17 @@ including IPs, OUI vendor, DHCP hostname, top destinations, and traffic volume.
 
 Usage:
     pcap-devices parsed_packets.csv
-    pcap-devices parsed_packets.csv --identify
     pcap-devices parsed_packets.csv --json
 """
 
 import argparse
 import json
 import sys
-import urllib.request
-import urllib.error
 
 import pandas as pd
 from rich.console import Console
 from rich.table import Table
 
-
-DEVID_API_URL = "https://rameen-mahmood--dev-id-predict.modal.run"
-DEVID_API_KEY = "momo"
 
 console = Console()
 
@@ -66,41 +60,6 @@ def aggregate_devices(input_csv):
     return devices
 
 
-def identify_device(device):
-    """Call the dev-id Modal API to predict device vendor."""
-    fields = {
-        "DHCP Hostname": device.get("dhcp_hostname") or "unknown",
-        "Remote Hostnames": ", ".join(device.get("top_destinations") or []) or "unknown",
-        "User Agent": device.get("user_agent") or "unknown",
-        "OUI": device.get("oui_vendor") or "unknown",
-    }
-
-    payload = json.dumps({
-        "mac_address": device.get("mac", ""),
-        "fields": fields,
-    }).encode()
-
-    req = urllib.request.Request(
-        DEVID_API_URL,
-        data=payload,
-        headers={
-            "Content-Type": "application/json",
-            "x-api-key": DEVID_API_KEY,
-        },
-    )
-
-    try:
-        with urllib.request.urlopen(req, timeout=30) as resp:
-            result = json.loads(resp.read().decode())
-            return {
-                "vendor": result.get("vendor", "unknown"),
-                "explanation": result.get("explanation", ""),
-                "source": result.get("source", ""),
-            }
-    except (urllib.error.URLError, json.JSONDecodeError) as e:
-        return {"vendor": "unknown", "explanation": str(e), "source": "error"}
-
-
 def _first_non_empty(group, column):
     """Return the first non-empty value from a column, or empty string."""
     if column not in group.columns:
@@ -119,14 +78,11 @@ def _format_bytes(n):
     return f"{n:.1f} TB"
 
 
-def print_devices(devices, identify=False):
+def print_devices(devices):
     """Print device table to stdout using rich."""
     if not devices:
         console.print("[bold yellow][!] No devices found.[/]")
         return
-
-    if identify:
-        console.print(f"\n[bold cyan][+] Identifying {len(devices)} devices via device ID API...[/]\n")
 
     table = Table(
         title="Devices",
@@ -144,8 +100,6 @@ def print_devices(devices, identify=False):
     table.add_column("Packets", justify="right", style="white")
     table.add_column("Traffic", justify="right", style="magenta")
     table.add_column("Top Destinations", style="cyan")
-    if identify:
-        table.add_column("Identified As", style="bold green")
 
     for i, device in enumerate(devices):
         ips = ", ".join(device["ips"][:3])
@@ -165,12 +119,6 @@ def print_devices(devices, identify=False):
             destinations or "-",
         ]
 
-        if identify:
-            identification = identify_device(device)
-            vendor = identification["vendor"].strip()
-            source = identification["source"]
-            row.append(f"{vendor} ({source})")
-
         table.add_row(*row)
 
     console.print(table)
@@ -182,8 +130,6 @@ def main():
         description="list devices found in parsed pcap data"
     )
     parser.add_argument("input", help="path to the parsed csv file (output of pcap-parse)")
-    parser.add_argument("--identify", action="store_true",
-                        help="identify devices using the device ID LLM API")
     parser.add_argument("--json", action="store_true", dest="output_json",
                         help="output as json instead of formatted table")
     args = parser.parse_args()
@@ -191,12 +137,9 @@ def main():
     devices = aggregate_devices(args.input)
 
     if args.output_json:
-        if args.identify:
-            for device in devices:
-                device["identification"] = identify_device(device)
         print(json.dumps(devices, indent=2))
     else:
-        print_devices(devices, identify=args.identify)
+        print_devices(devices)
 
 
 if __name__ == "__main__":

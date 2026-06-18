@@ -33,18 +33,11 @@ pcap-devices output.csv
   <img src="docs/images/pcap-devices.svg" width="700" alt="pcap-devices output">
 </p>
 
-Identify unknown devices with a fine-tuned LLM:
-
-```bash
-pcap-devices output.csv --identify
-```
-
 ## Features
 
 - Parse `.pcap` and `.pcapng` files using tshark
 - Instant capture summaries with protocol breakdown, top talkers, and top destinations
 - Per-device traffic profiles with OUI vendor, DHCP hostname, and traffic volume
-- LLM-powered device identification via [IoT Inspector](https://github.com/nyu-mlab/iot-inspector-client)
 - Hostname enrichment from DNS, TLS SNI, DHCP, and reverse DNS
 - Flow aggregation with packet counts, byte counts, and inter-arrival times
 - JSON output for all commands (`--json`)
@@ -87,7 +80,6 @@ pcap-summary output.csv
 
 ```bash
 pcap-devices output.csv
-pcap-devices output.csv --identify    # LLM-powered device identification
 pcap-devices output.csv --json        # machine-readable output
 ```
 
