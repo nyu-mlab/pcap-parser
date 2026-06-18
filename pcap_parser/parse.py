@@ -28,14 +28,12 @@ if not TSHARK_PATH:
 
 FIELDS = [
     'frame.time_epoch',
-    'eth.src', 'eth.src.oui_resolved', 'eth.dst',
     'ip.src', 'ip.dst',
     'tcp.srcport', 'tcp.dstport',
     'udp.srcport', 'udp.dstport',
     '_ws.col.Protocol', 'frame.len',
     'dns.qry.name', 'dns.a',
     'tls.handshake.extensions_server_name',
-    'http.user_agent',
     'bootp.option.hostname'
 ]
 

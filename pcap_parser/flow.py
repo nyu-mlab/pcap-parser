@@ -74,9 +74,7 @@ def process_pcap_data(input_csv, output_csv):
         dst_hostname=('dst_hostname', 'first'),
         dhcp_hostname=('dhcp_hostname', 'first'),
         src_main_domain=('src_main_domain', 'first'),
-        dst_main_domain=('dst_main_domain', 'first'),
-        user_agent_info=('http.user_agent', 'first'),
-        oui_vendor=('eth.src.oui_resolved', 'first')
+        dst_main_domain=('dst_main_domain', 'first')
     ).reset_index()
 
     flows = flows[[
@@ -84,8 +82,7 @@ def process_pcap_data(input_csv, output_csv):
         'src_port', 'dst_port', '_ws.col.protocol',
         'byte_count', 'packet_count', 'avg_inter_arrival_time',
         'src_hostname', 'dst_hostname', 'dhcp_hostname',
-        'src_main_domain', 'dst_main_domain',
-        'user_agent_info', 'oui_vendor'
+        'src_main_domain', 'dst_main_domain'
     ]]
 
     flows.to_csv(output_csv, index=False)

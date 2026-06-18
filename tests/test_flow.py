@@ -62,8 +62,6 @@ class TestProcessPcapData:
             "src_hostname": [""] * 5,
             "dst_hostname": ["example.com"] * 5,
             "dhcp_hostname": [""] * 5,
-            "http.user_agent": [None] * 5,
-            "eth.src.oui_resolved": ["SomeVendor"] * 5,
         }
         df = pd.DataFrame(data)
         csv_path = str(tmp_path / "parsed.csv")

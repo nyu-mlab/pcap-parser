@@ -6,7 +6,6 @@ Python tool to parse pcap files and extract flow-related network traffic informa
 
 - Parse `.pcap` and `.pcapng` files using tshark
 - Hostname enrichment from DNS queries, TLS SNI, DHCP, and reverse DNS
-- Device metadata extraction (OUI vendor, HTTP user-agent)
 - Flow aggregation with packet counts, byte counts, and inter-arrival times
 - Domain extraction from hostnames
 - Persistent IP-to-hostname cache across runs
@@ -68,8 +67,6 @@ pcap-flow output.csv aggregated_flows.csv
 | `frame.len` | Packet length in bytes |
 | `src_hostname` / `dst_hostname` | Resolved hostnames |
 | `dhcp_hostname` | DHCP-advertised hostname |
-| `eth.src.oui_resolved` | Device vendor from MAC OUI |
-| `http.user_agent` | HTTP user-agent string |
 
 `pcap-flow` aggregates these into flows with start/end timestamps, byte counts, packet counts, and average inter-arrival times.
 
